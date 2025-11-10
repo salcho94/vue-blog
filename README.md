@@ -1,48 +1,22 @@
-# .
+# 🌿 Vue Firebase Blog
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + TypeScript + Firebase 기반의 모던 블로그 프로젝트입니다.  
+Vite 빌드 도구와 Tailwind CSS를 사용해 가볍고 빠른 개발 환경을 제공합니다.
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## ⚙️ 설치 및 실행
 
-## Recommended Browser Setup
+```bash
+# 1. 저장소 클론
+git clone https://github.com/salcho94/vue-blog.git
+cd vue-blog
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) 
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
+# 2. 패키지 설치
 npm install
-```
 
-### Compile and Hot-Reload for Development
-
-```sh
+# 3. 개발 서버 실행
 npm run dev
-```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
+# 4. 빌드
 npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```

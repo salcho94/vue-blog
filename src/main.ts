@@ -10,7 +10,6 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// 🔐 Firebase 로그인 상태 감시 시작
 const authStore = useAuthStore()
 authStore.init()
 
