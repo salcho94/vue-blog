@@ -35,16 +35,35 @@ const router = createRouter({
   ],
 })
 
-// 간단한 인증 가드
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  if (!auth.initialized) auth.init()
 
-  if (to.meta.requiresAuth && !auth.user) {
-    next({ name: 'login', query: { redirect: to.fullPath } })
-  } else {
-    next()
+  // 1) 아직 init 안 했으면 초기화 한 번 수행
+  if (!auth.initialized) {
+    const maybePromise = auth.init?.()
+    if (maybePromise && typeof maybePromise.then === 'function') {
+      await maybePromise
+    }
   }
+
+  const isLoggedIn = !!auth.user
+  const toName = to.name as string | undefined
+
+  // 2) 보호된 라우트인데 로그인 안 되어 있으면 → 로그인 페이지로
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  // 3) 로그인 했는데 로그인/회원가입 페이지 가려고 하면 → 홈으로
+  if (isLoggedIn && (toName === 'login' || toName === 'signup')) {
+    return { name: 'home' }
+  }
+
+  // 4) 그 외에는 통과
+  return true
 })
 
 export default router

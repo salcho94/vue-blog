@@ -21,16 +21,16 @@ onMounted(async () => {
   <div class="space-y-6">
     <section>
       <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-        salcho.dev <span class="text-cyan-400">/ blog</span>
+        salcho-blog <span class="text-cyan-400">/ Developer</span>
       </h1>
       <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        코드, 기록, 생각들을 IDE 스타일로 정리한 개인 블로그.
+         IDE 스타일로 정리한 개인 블로그.
       </p>
     </section>
 
     <section>
-      <h2 class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
-        latest posts
+      <h2 class="text-sm font-medium text-slate-600 dark:text-cyan-400 mb-2">
+        최근 글
       </h2>
       <div v-if="loading" class="text-xs text-slate-500">loading...</div>
       <div v-else-if="!posts.length" class="text-xs text-slate-500">

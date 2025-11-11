@@ -1,10 +1,11 @@
+<!-- src/App.vue -->
 <script setup lang="ts">
 import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
 import { ref, onMounted, watch, computed } from 'vue'
-import { useAuthStore } from './stores/auth.store'
-import { getAllPublishedPosts } from './services/posts'
-import type { Post } from './types/post'
-
+import { useAuthStore } from '@/stores/auth.store'
+import { getAllPublishedPosts } from '@/services/posts'
+import type { Post } from '@/types/post'
+const showMobileMenu = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
@@ -13,9 +14,7 @@ const isDark = ref(true)
 const posts = ref<Post[]>([])
 const loadingPosts = ref(false)
 const errorMsg = ref('')
-const selectedPost = ref<Post | null>(null)
 
-// 다크 모드 적용
 const applyTheme = () => {
   const root = document.documentElement
   if (isDark.value) {
@@ -28,13 +27,13 @@ const applyTheme = () => {
 }
 
 onMounted(async () => {
-  // 테마 복원
+  auth.init?.()
+
   const saved = localStorage.getItem('theme')
   if (saved === 'dark') isDark.value = true
   else if (saved === 'light') isDark.value = false
   applyTheme()
 
-  // 게시글 로드
   loadingPosts.value = true
   try {
     posts.value = await getAllPublishedPosts()
@@ -47,50 +46,54 @@ onMounted(async () => {
 
 watch(isDark, applyTheme)
 
-const logout = async () => {
-  await auth.logout()
-  router.push('/')
-  selectedPost.value = null
-}
+const isDetailRoute = computed(() => route.name === 'post-detail')
+
+const activePostId = computed(() => {
+  if (route.name === 'post-detail' && typeof route.params.id === 'string') {
+    return route.params.id
+  }
+  return null
+})
+
+const activePostMeta = computed(() => {
+  if (route.name === 'post-detail' && typeof route.params.id === 'string') {
+    const found = posts.value.find((p) => String(p.id) === route.params.id)
+    if (found) {
+      const createdAt =
+        (found.createdAt as any)?.toDate?.().toLocaleDateString?.('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }) || ''
+      return {
+        title: found.title || 'untitled.md',
+        author: found.authorName || '익명',
+        createdAt,
+      }
+    }
+  }
+  return null
+})
 
 const openPost = (post: Post) => {
-  // 메인 화면에서 우측에 미리보기만 보여줌
-  selectedPost.value = post
+  if (!post?.id) return
+  router.push({ name: 'post-detail', params: { id: String(post.id) } })
 }
 
-// 모바일 select
 const handleMobileSelect = (event: Event) => {
   const target = event.target as HTMLSelectElement
   const id = target.value
   if (!id) {
-    selectedPost.value = null
+    router.push({ name: 'home' })
     return
   }
-  const p = posts.value.find((post) => String(post.id) === id)
-  selectedPost.value = p || null
+  router.push({ name: 'post-detail', params: { id } })
 }
 
-// 미리보기 → 상세 페이지(댓글 포함) 이동
-const goDetailFromPreview = () => {
-  if (!selectedPost.value) return
-  router.push(`/posts/${selectedPost.value.id}`)
+const logout = async () => {
+  await auth.logout()
+  router.push({ name: 'home' })
 }
-
-// 현재 라우트가 상세 페이지인지 판별
-const isDetailRoute = computed(() => {
-  // /posts/:id 같은 라우트에서 params.id가 존재한다고 가정
-  return typeof route.params.id === 'string'
-})
-
-// 라우트가 상세 페이지로 바뀌면, App.vue 쪽 선택 상태는 비워서 RouterView를 우선
-watch(
-  () => route.fullPath,
-  () => {
-    if (isDetailRoute.value) {
-      selectedPost.value = null
-    }
-  },
-)
 </script>
 
 <template>
@@ -102,63 +105,81 @@ watch(
       class="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/95 backdrop-blur-xl"
     >
       <div
-        class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 gap-4"
+        class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-3"
       >
-        <!-- 로고 + 탭 -->
-        <div class="flex items-center gap-4">
-          <div
-            class="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-cyan-400 to-blue-500 text-[13px] font-semibold text-slate-950 shadow-[0_0_16px_rgba(56,189,248,0.45)]"
+        <!-- 로고 + 데스크탑 메뉴 -->
+        <div class="flex items-center gap-3">
+          <!-- 로고 이미지 -->
+          <RouterLink :to="{ name: 'home' }" class="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="SALCHO"
+              class="h-8 w-auto object-contain
+           dark:invert dark:brightness-200"
+            />
+          </RouterLink>
+
+          <!-- 데스크탑용 네비 -->
+          <nav
+            class="hidden md:flex items-center gap-2 text-[12px] md:text-[13px]"
           >
-            B
-          </div>
-          <nav class="flex items-center gap-2 text-[12px] md:text-[13px]">
             <RouterLink
-              to="/"
-              class="rounded-t-md px-3 py-1.5 border border-transparent hover:bg-slate-100 dark:hover:bg-slate-900/70 hover:text-cyan-400 transition-colors"
-              active-class="bg-slate-200 dark:bg-slate-900 text-cyan-400"
+              :to="{ name: 'home' }"
+              class="rounded-t-md px-3 py-1.5 border border-transparent
+                 hover:bg-slate-100 dark:hover:bg-slate-900/70
+                 hover:text-black dark:hover:text-yellow-400 transition-colors"
+              active-class="bg-slate-200 dark:bg-slate-900 text-black dark:text-yellow-400"
             >
-              home.tsx
-            </RouterLink>
-            <RouterLink
-              to="/posts"
-              class="rounded-t-md px-3 py-1.5 border border-transparent hover:bg-slate-100 dark:hover:bg-slate-900/70 hover:text-cyan-400 transition-colors"
-              active-class="bg-slate-200 dark:bg-slate-900 text-cyan-400"
-            >
-              posts.ts
+              홈
             </RouterLink>
             <RouterLink
               v-if="auth.user"
-              to="/admin/new"
-              class="rounded-t-md px-3 py-1.5 hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors"
-              active-class="bg-slate-200 dark:bg-slate-900 text-emerald-300"
+              :to="{ name: 'new-post' }"
+              class="rounded-t-md px-3 py-1.5
+                 hover:bg-slate-100 dark:hover:bg-slate-900/70
+                 hover:text-black dark:hover:text-yellow-400 transition-colors"
+              active-class="bg-slate-200 dark:bg-slate-900 text-black dark:text-yellow-400"
             >
-              draft.md
+              글 작성
             </RouterLink>
           </nav>
         </div>
 
-        <!-- 우측: 다크 토글 + 로그인 -->
-        <div class="flex items-center gap-3">
+        <!-- 우측: 다크 토글 + 로그인 + 모바일 메뉴 버튼 -->
+        <div class="flex items-center gap-2">
+          <!-- 다크 모드 토글 -->
           <button
             @click="isDark = !isDark"
-            class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[15px] hover:border-cyan-400 hover:text-cyan-400 transition-colors"
+            class="flex h-8 w-8 items-center justify-center rounded-md
+               border border-slate-300 dark:border-slate-700
+               bg-white dark:bg-slate-950 text-[15px]
+               hover:border-black hover:text-black
+               dark:hover:border-yellow-400 dark:hover:text-yellow-400
+               transition-colors"
           >
             <span v-if="isDark">🌙</span>
             <span v-else>☀️</span>
           </button>
 
+          <!-- 데스크탑: 유저 정보 -->
           <div
             v-if="auth.user"
-            class="flex items-center gap-2 text-[11px] md:text-[12px]"
+            class="hidden md:flex items-center gap-2 text-[11px] md:text-[12px]"
           >
-            <span
-              class="max-w-[160px] truncate rounded bg-slate-100 dark:bg-slate-900 px-2 py-1 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400"
-            >
-              {{ auth.user.email }}
-            </span>
+        <span
+          class="max-w-[160px] truncate rounded
+                 bg-slate-100 dark:bg-slate-900
+                 px-2 py-1 border border-slate-300 dark:border-slate-700
+                 text-slate-700 dark:text-slate-300"
+        >
+          {{ auth.user.email }}
+        </span>
             <button
               @click="logout"
-              class="rounded bg-gradient-to-r from-cyan-400 to-blue-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:from-cyan-300 hover:to-blue-400 transition-colors"
+              class="rounded px-3 py-1.5 text-[11px] font-semibold
+                 bg-black text-white hover:bg-slate-800
+                 dark:bg-yellow-400 dark:text-black dark:hover:bg-yellow-300
+                 transition-colors"
             >
               logout
             </button>
@@ -166,17 +187,103 @@ watch(
 
           <div
             v-else
-            class="flex items-center gap-2 text-[11px] md:text-[12px]"
+            class="hidden md:flex items-center gap-2 text-[11px] md:text-[12px]"
           >
             <RouterLink
-              to="/login"
-              class="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 hover:border-cyan-400 hover:text-cyan-400 transition-colors"
+              :to="{ name: 'login' }"
+              class="rounded px-3 py-1.5
+                 border border-slate-300 dark:border-slate-700
+                 bg-white dark:bg-slate-950
+                 hover:border-black hover:text-black
+                 dark:hover:border-yellow-400 dark:hover:text-yellow-400
+                 transition-colors"
             >
               login
             </RouterLink>
             <RouterLink
-              to="/signup"
-              class="rounded bg-cyan-400 px-3 py-1.5 font-semibold text-slate-950 hover:bg-cyan-300 transition-colors"
+              :to="{ name: 'signup' }"
+              class="rounded px-3 py-1.5 font-semibold
+                 bg-black text-white hover:bg-slate-800
+                 dark:bg-yellow-400 dark:text-black dark:hover:bg-yellow-300
+                 transition-colors"
+            >
+              sign up
+            </RouterLink>
+          </div>
+
+          <!-- 모바일 메뉴 버튼 -->
+          <button
+            class="md:hidden flex h-8 w-8 items-center justify-center rounded-md
+               border border-slate-300 dark:border-slate-700
+               bg-white dark:bg-slate-950 text-[16px]"
+            @click="showMobileMenu = !showMobileMenu"
+          >
+            <span v-if="showMobileMenu">✕</span>
+            <span v-else>☰</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 모바일 드롭다운 메뉴 -->
+      <div
+        v-if="showMobileMenu"
+        class="md:hidden border-t border-slate-200 dark:border-slate-800
+           bg-white/98 dark:bg-slate-950/98"
+      >
+        <div class="mx-auto max-w-6xl px-4 py-2 flex flex-col gap-1 text-[12px]">
+          <RouterLink
+            :to="{ name: 'home' }"
+            class="px-2 py-1 rounded-md
+               hover:bg-slate-100 dark:hover:bg-slate-900
+               transition-colors"
+            @click="showMobileMenu = false"
+          >
+            홈
+          </RouterLink>
+
+          <RouterLink
+            v-if="auth.user"
+            :to="{ name: 'new-post' }"
+            class="px-2 py-1 rounded-md
+               hover:bg-slate-100 dark:hover:bg-slate-900
+               transition-colors"
+            @click="showMobileMenu = false"
+          >
+            글 작성
+          </RouterLink>
+
+          <div v-if="auth.user" class="flex items-center justify-between px-2 pt-1">
+        <span class="text-slate-500 text-[11px] truncate">
+          {{ auth.user.email }}
+        </span>
+            <button
+              @click="
+            logout();
+            showMobileMenu = false;
+          "
+              class="text-[11px] px-2 py-1 rounded bg-black text-white
+                 dark:bg-yellow-400 dark:text-black"
+            >
+              logout
+            </button>
+          </div>
+
+          <div v-else class="flex gap-2 px-2 pt-1">
+            <RouterLink
+              :to="{ name: 'login' }"
+              class="flex-1 text-center text-[11px] px-2 py-1 rounded
+                 border border-slate-300 dark:border-slate-700
+                 hover:border-black dark:hover:border-yellow-400"
+              @click="showMobileMenu = false"
+            >
+              login
+            </RouterLink>
+            <RouterLink
+              :to="{ name: 'signup' }"
+              class="flex-1 text-center text-[11px] px-2 py-1 rounded
+                 bg-black text-white
+                 dark:bg-yellow-400 dark:text-black"
+              @click="showMobileMenu = false"
             >
               sign up
             </RouterLink>
@@ -187,32 +294,25 @@ watch(
 
     <!-- 메인 레이아웃 -->
     <div class="mx-auto max-w-6xl px-4 py-4 flex flex-col gap-4 md:flex-row">
-      <!-- 좌측: 게시글 리스트 (상세 페이지일 땐 그대로 두고, 선택은 미리보기용) -->
+      <!-- Explorer -->
       <aside
-        class="hidden md:flex w-64 flex-col gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 p-3 text-[11px] text-slate-600 dark:text-slate-400"
+        class="hidden md:flex w-64 flex-col gap-2 rounded-2xl
+               border border-slate-200 dark:border-slate-800
+               bg-white/95 dark:bg-slate-950/95
+               p-3 text-[11px] text-slate-600 dark:text-slate-400"
       >
         <div class="flex items-center justify-between mb-1">
-          <span class="text-[10px] uppercase tracking-[0.14em]">
-            explorer
-          </span>
+          <span class="text-[10px] uppercase tracking-[0.14em]">explorer</span>
           <span class="text-slate-500">⋯</span>
         </div>
 
-        <p class="text-[10px] mb-1 text-slate-400 dark:text-slate-500">
-          posts
-        </p>
+        <p class="text-[10px] mb-1 text-slate-400 dark:text-slate-500">게시글</p>
 
         <div class="pl-1 space-y-1 max-h-72 overflow-y-auto">
-          <div
-            v-if="loadingPosts"
-            class="text-[10px] text-slate-400"
-          >
+          <div v-if="loadingPosts" class="text-[10px] text-slate-400">
             loading posts...
           </div>
-          <div
-            v-else-if="errorMsg"
-            class="text-[10px] text-red-400"
-          >
+          <div v-else-if="errorMsg" class="text-[10px] text-red-400">
             {{ errorMsg }}
           </div>
           <div v-else>
@@ -222,9 +322,9 @@ watch(
               @click="openPost(post)"
               class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
               :class="
-                selectedPost && selectedPost.id === post.id
-                  ? 'bg-slate-200 dark:bg-slate-800 text-cyan-400'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-cyan-300'
+                activePostId === String(post.id)
+                  ? 'bg-slate-200 text-black dark:bg-slate-800 dark:text-yellow-400'
+                  : 'hover:bg-slate-100 hover:text-black dark:hover:bg-slate-900 dark:hover:text-yellow-300'
               "
             >
               <span class="truncate">
@@ -238,39 +338,38 @@ watch(
         </div>
 
         <div
-          class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-600"
+          class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800
+                 text-[10px] text-slate-500 dark:text-slate-600"
         >
           <p>
             auth:
-            <span class="text-cyan-400">
-              {{ auth.user ? 'signed-in' : 'guest' }}
+            <span class="font-semibold text-black dark:text-yellow-400">
+              {{ auth.user ? auth.user.email : 'guest' }}
             </span>
           </p>
-          <p>env: <span>firebase · gh-pages</span></p>
+          <p>env: <span>firebase</span></p>
         </div>
       </aside>
 
-      <!-- 우측: 본문 -->
+      <!-- 오른쪽: RouterView -->
       <main
-        class="flex-1 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.85)] transition-colors duration-300"
+        class="flex-1 rounded-2xl
+               border border-slate-200 dark:border-slate-800
+               bg-white dark:bg-slate-950
+               p-4 transition-colors duration-300"
       >
-        <!-- 모바일용 드롭다운 -->
+        <!-- 모바일 Explorer 선택 -->
         <div class="mb-3 md:hidden">
-          <label
-            class="block text-[11px] text-slate-500 dark:text-slate-400 mb-1"
-          >
+          <label class="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
             select post
           </label>
           <select
-            class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-md border border-slate-300 dark:border-slate-700
+                   bg-white dark:bg-slate-950 px-2 py-1.5 text-[12px]"
             @change="handleMobileSelect"
           >
             <option value="">router-view.tsx (페이지 보기)</option>
-            <option
-              v-for="post in posts"
-              :key="post.id"
-              :value="post.id"
-            >
+            <option v-for="post in posts" :key="post.id" :value="post.id">
               {{ post.title || 'untitled.md' }}
             </option>
           </select>
@@ -278,84 +377,44 @@ watch(
 
         <!-- 탭 바 -->
         <div
-          class="mb-3 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 text-[10px] text-slate-500 dark:text-slate-600"
+          class="mb-3 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800
+                 pb-2 text-[10px] text-slate-500 dark:text-slate-600"
         >
           <div
-            class="flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-900 px-2 py-1 text-cyan-400"
+            class="flex items-center gap-1 rounded-md
+         bg-slate-100 dark:bg-slate-900
+         px-2 py-1
+         text-black dark:text-yellow-400"
           >
-            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span>
-              <!-- 상세 라우트면 라우터 페이지 기준 이름, 아니면 선택된 포스트 or 기본 -->
-              {{
-                isDetailRoute
-                  ? 'post.ts'
-                  : selectedPost
-                    ? (selectedPost.title || 'post.md')
-                    : 'router-view.tsx'
-              }}
+            <span class="h-1.5 w-1.5 rounded-full bg-black dark:bg-yellow-400" />
+            <span v-if="activePostMeta">
+              {{ activePostMeta.title }}
+              <span class="ml-2 text-[10px] text-slate-500 dark:text-slate-400">
+                · {{ activePostMeta.author }} · {{ activePostMeta.createdAt }}
+              </span>
             </span>
+            <span v-else>router-view.tsx</span>
           </div>
           <div class="flex-1 text-right text-[9px]">
             Vue 3 · Firebase · Tailwind
           </div>
         </div>
-
-        <!-- 내용 구역 -->
         <div class="leading-relaxed">
-          <!-- 1. /posts/:id 상세 페이지 => RouterView (여기서 댓글 포함) -->
-          <section v-if="isDetailRoute">
-            <RouterView />
-          </section>
-
-          <!-- 2. 선택된 포스트 미리보기 -->
-          <section
-            v-else-if="selectedPost"
-            class="space-y-3"
-          >
-            <h1
-              class="text-cyan-400 text-[18px] font-semibold"
-            >
-              {{ selectedPost.title }}
-            </h1>
-            <p
-              class="text-[11px] text-slate-500 dark:text-slate-400"
-            >
-              views: {{ selectedPost.views ?? 0 }} · likes:
-              {{ selectedPost.likes ?? 0 }}
-            </p>
-            <div
-              class="whitespace-pre-wrap text-[13px] md:text-[14px] text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 rounded-xl p-4 font-mono max-h-[460px] overflow-y-auto"
-            >
-              {{ selectedPost.content }}
-            </div>
-
-            <!-- 여기서 상세 페이지로 이동 → 댓글 가능 -->
-            <button
-              @click="goDetailFromPreview"
-              class="mt-2 inline-flex items-center gap-1.5 rounded-md bg-cyan-400 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-cyan-300 transition-colors"
-            >
-              open detail & comments
-            </button>
-          </section>
-
-          <!-- 3. 기본 라우터 페이지 (홈, 전체 포스트 페이지 등) -->
-          <section v-else>
-            <RouterView />
-          </section>
+          <RouterView />
         </div>
       </main>
     </div>
 
     <!-- 푸터 -->
     <footer
-      class="mt-2 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 text-[10px] text-slate-500 dark:text-slate-600"
+      class="mt-2 border-t border-slate-200 dark:border-slate-800
+             bg-white/95 dark:bg-slate-950/95
+             text-[10px] text-slate-500 dark:text-slate-600"
     >
-      <div
-        class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 gap-4"
-      >
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 gap-4">
         <div class="flex items-center gap-2">
-          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span>connected: firestore & auth</span>
+          <span class="h-1.5 w-1.5 rounded-full bg-black dark:bg-yellow-400" />
+          <span>connected: salcho-blog</span>
         </div>
         <div class="flex items-center gap-3">
           <span>Ln 42, Col 7</span>

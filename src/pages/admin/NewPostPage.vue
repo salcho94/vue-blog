@@ -38,7 +38,7 @@ const submit = async () => {
       authorName: auth.user.email || 'user',
       isPublished: true,
     })
-    router.push(`/posts/${id}`)
+    location.href = `/posts/${id}`
   } catch (e: any) {
     errorMsg.value = e.message || '등록 실패'
   } finally {
@@ -50,7 +50,7 @@ const submit = async () => {
 <template>
   <div class="max-w-2xl mx-auto space-y-3">
     <h1 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
-      new post
+      글 작성
     </h1>
 
     <div class="space-y-2 text-[11px]">
@@ -59,20 +59,20 @@ const submit = async () => {
         placeholder="제목"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
       />
-      <input
-        v-model="summary"
-        placeholder="요약 (선택)"
-        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
-      />
-      <input
-        v-model="tags"
-        placeholder="태그 (쉼표로 구분)"
-        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
-      />
+<!--      <input-->
+<!--        v-model="summary"-->
+<!--        placeholder="요약 (선택)"-->
+<!--        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"-->
+<!--      />-->
+<!--      <input-->
+<!--        v-model="tags"-->
+<!--        placeholder="태그 (쉼표로 구분)"-->
+<!--        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"-->
+<!--      />-->
       <textarea
         v-model="content"
         rows="10"
-        placeholder="내용 (마크다운 느낌으로 작성해도 좋음)"
+        placeholder="내용"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-2 font-mono"
       />
       <button
