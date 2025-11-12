@@ -1,31 +1,32 @@
-<!-- src/pages/PostsPage.vue -->
+<!-- src/pages/TagPage.vue -->
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
-import { getAllPublishedPosts } from '@/services/posts'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, RouterLink } from 'vue-router'
+import { getPostsByTag } from '@/services/posts'
 import type { Post } from '@/types/post'
 
+const route = useRoute()
 const posts = ref<Post[]>([])
 const loading = ref(true)
-const errorMsg = ref('')
+const tag = ref<string>('')
 
-onMounted(async () => {
-  try {
-    posts.value = await getAllPublishedPosts()
-  } catch (e: any) {
-    errorMsg.value = e?.message || '불러오기 실패'
-  } finally {
-    loading.value = false
-  }
-})
+async function load() {
+  loading.value = true
+  tag.value = String(route.params.tag || '')
+  posts.value = tag.value ? await getPostsByTag(tag.value) : []
+  loading.value = false
+}
+
+watch(() => route.params.tag, load, { immediate: true })
 </script>
 
 <template>
   <section>
-    <h1 class="mb-4 text-xl font-semibold">Posts</h1>
+    <h1 class="mb-4 text-xl font-semibold">
+      #{{ tag }} <span class="text-sm text-slate-500">({{ posts.length }})</span>
+    </h1>
 
     <div v-if="loading" class="text-sm text-slate-500">loading…</div>
-    <div v-else-if="errorMsg" class="text-sm text-red-400">{{ errorMsg }}</div>
 
     <ul v-else class="grid gap-3 md:grid-cols-2">
       <li v-for="p in posts" :key="p.id"

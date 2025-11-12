@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Explorer 전용 스크롤 스타일 */
+.scroll-theme {
+  scrollbar-width: thin;
+  scrollbar-color: #d0d0d0 transparent; /* 라이트모드: 회색 */
+}
+
+/* 크롬, 엣지, 사파리 */
+.scroll-theme::-webkit-scrollbar {
+  width: 3px;
+}
+.scroll-theme::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-theme::-webkit-scrollbar-thumb {
+  background-color: rgba(180, 180, 180, 0.5); /* 라이트모드: 은은한 회색 */
+  border-radius: 6px;
+}
+
+/* 다크모드용 */
+html.dark .scroll-theme {
+  scrollbar-color: #facc15 transparent; /* 노란빛 */
+}
+html.dark .scroll-theme::-webkit-scrollbar-thumb {
+  background-color: rgba(250, 204, 21, 0.4); /* 노란색, 약하게 */
+}
+html.dark .scroll-theme::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(250, 204, 21, 0.6);
+}
+

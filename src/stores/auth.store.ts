@@ -15,16 +15,23 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
     initialized: false,
+    _initPromise: null as Promise<void> | null, // ★ 추가: 중복 init 방지
   }),
 
   actions: {
-    init() {
-      if (this.initialized) return
+    init(): Promise<void> {
+      if (this.initialized) return Promise.resolve()
+      if (this._initPromise) return this._initPromise
 
-      onAuthStateChanged(auth, (user) => {
-        this.user = user
-        this.initialized = true
+      this._initPromise = new Promise<void>((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          this.user = user
+          this.initialized = true
+          unsubscribe()       // 첫 이벤트 후 정리
+          resolve()
+        })
       })
+      return this._initPromise
     },
 
     async login(email: string, password: string) {

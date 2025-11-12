@@ -27,8 +27,6 @@ const applyTheme = () => {
 }
 
 onMounted(async () => {
-  auth.init?.()
-
   const saved = localStorage.getItem('theme')
   if (saved === 'dark') isDark.value = true
   else if (saved === 'light') isDark.value = false
@@ -45,8 +43,6 @@ onMounted(async () => {
 })
 
 watch(isDark, applyTheme)
-
-const isDetailRoute = computed(() => route.name === 'post-detail')
 
 const activePostId = computed(() => {
   if (route.name === 'post-detail' && typeof route.params.id === 'string') {
@@ -308,33 +304,21 @@ const logout = async () => {
 
         <p class="text-[10px] mb-1 text-slate-400 dark:text-slate-500">게시글</p>
 
-        <div class="pl-1 space-y-1 max-h-72 overflow-y-auto">
-          <div v-if="loadingPosts" class="text-[10px] text-slate-400">
-            loading posts...
-          </div>
-          <div v-else-if="errorMsg" class="text-[10px] text-red-400">
-            {{ errorMsg }}
-          </div>
-          <div v-else>
-            <button
-              v-for="post in posts"
-              :key="post.id"
-              @click="openPost(post)"
-              class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
-              :class="
-                activePostId === String(post.id)
-                  ? 'bg-slate-200 text-black dark:bg-slate-800 dark:text-yellow-400'
-                  : 'hover:bg-slate-100 hover:text-black dark:hover:bg-slate-900 dark:hover:text-yellow-300'
-              "
-            >
-              <span class="truncate">
-                {{ post.title || 'untitled.md' }}
-              </span>
-              <span class="text-[9px] text-slate-400">
-                {{ post.views ?? 0 }}v
-              </span>
-            </button>
-          </div>
+        <div class="pl-1 space-y-1 h-96 overflow-y-auto scroll-theme">
+          <button
+            v-for="post in posts"
+            :key="post.id"
+            @click="openPost(post)"
+            class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
+            :class="
+      activePostId === String(post.id)
+        ? 'bg-slate-200 text-black dark:bg-slate-800 dark:text-yellow-400'
+        : 'hover:bg-slate-100 hover:text-black dark:hover:bg-slate-900 dark:hover:text-yellow-300'
+    "
+          >
+            <span class="truncate">{{ post.title || 'untitled.md' }}</span>
+            <span class="text-[9px] text-slate-400">{{ post.views ?? 0 }}v</span>
+          </button>
         </div>
 
         <div

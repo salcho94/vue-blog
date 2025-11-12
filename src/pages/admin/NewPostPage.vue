@@ -59,16 +59,16 @@ const submit = async () => {
         placeholder="제목"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
       />
-<!--      <input-->
-<!--        v-model="summary"-->
-<!--        placeholder="요약 (선택)"-->
-<!--        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"-->
-<!--      />-->
-<!--      <input-->
-<!--        v-model="tags"-->
-<!--        placeholder="태그 (쉼표로 구분)"-->
-<!--        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"-->
-<!--      />-->
+      <input
+        v-model="summary"
+        placeholder="요약 (선택)"
+        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
+      />
+      <input
+        v-model="tags"
+        placeholder="태그 (쉼표로 구분)"
+        class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
+      />
       <textarea
         v-model="content"
         rows="10"
@@ -78,7 +78,10 @@ const submit = async () => {
       <button
         @click="submit"
         :disabled="loading"
-        class="px-4 py-1.5 rounded-md bg-cyan-400 text-slate-950 text-[11px] font-semibold hover:bg-cyan-300 disabled:opacity-60"
+        class="px-4 py-2 rounded-md text-[12px] font-semibold
+                 bg-black text-white hover:bg-slate-800
+                 disabled:opacity-60
+                 dark:bg-yellow-400 dark:text-black dark:hover:bg-yellow-300"
       >
         게시
       </button>

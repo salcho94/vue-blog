@@ -1,68 +1,74 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import HomePage from '@/pages/HomePage.vue'
-import PostsPage from '@/pages/PostsPage.vue'
-import PostDetailPage from '@/pages/PostDetailPage.vue'
-import LoginPage from '@/pages/auth/LoginPage.vue'
-import SignupPage from '@/pages/auth/SignupPage.vue'
-import NewPostPage from '@/pages/admin/NewPostPage.vue'
-import EditPostPage from '@/pages/admin/EditPostPage.vue'
-import AboutView from '@/views/AboutView.vue'
+// src/router/index.ts
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+
+// ⬇️ 코드 스플리팅(권장)
+const HomeFeed      = () => import('@/pages/HomeFeed.vue')        // 새로 만든 피드 컴포넌트
+const PostDetail    = () => import('@/pages/PostDetailPage.vue')
+const LoginPage     = () => import('@/pages/auth/LoginPage.vue')
+const SignupPage    = () => import('@/pages/auth/SignupPage.vue')
+const NewPostPage   = () => import('@/pages/admin/NewPostPage.vue')
+const EditPostPage  = () => import('@/pages/admin/EditPostPage.vue')
+const AboutView     = () => import('@/views/AboutView.vue')
+const TagPage       = () => import('@/pages/TagPage.vue')
+
+const routes: RouteRecordRaw[] = [
+  // 홈 = 바로 피드
+  { path: '/', name: 'home', component: HomeFeed },
+
+  // 기존 posts 경로도 피드로 통일(북마크 호환)
+  { path: '/posts', name: 'posts', component: HomeFeed },
+
+  { path: '/posts/:id', name: 'post-detail', component: PostDetail },
+  { path: '/t/:tag',    name: 'tag-view',    component: TagPage, props: true },
+
+  { path: '/about',  name: 'about',  component: AboutView },
+  { path: '/login',  name: 'login',  component: LoginPage },
+  { path: '/signup', name: 'signup', component: SignupPage },
+
+  {
+    path: '/admin/new',
+    name: 'new-post',
+    component: NewPostPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin/edit/:id',
+    name: 'edit-post',
+    component: EditPostPage,
+    meta: { requiresAuth: true },
+  },
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    { path: '/', name: 'home', component: HomePage },
-    { path: '/about', name: 'about', component: AboutView },
-    { path: '/posts', name: 'posts', component: PostsPage },
-    { path: '/posts/:id', name: 'post-detail', component: PostDetailPage },
-
-    { path: '/login', name: 'login', component: LoginPage },
-    { path: '/signup', name: 'signup', component: SignupPage },
-
-    {
-      path: '/admin/new',
-      name: 'new-post',
-      component: NewPostPage,
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/admin/edit/:id',
-      name: 'edit-post',
-      component: EditPostPage,
-      meta: { requiresAuth: true },
-    },
-  ],
+  routes,
+  scrollBehavior() {
+    return { top: 0 }
+  },
 })
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // 1) 아직 init 안 했으면 초기화 한 번 수행
-  if (!auth.initialized) {
-    const maybePromise = auth.init?.()
-    if (maybePromise && typeof maybePromise.then === 'function') {
-      await maybePromise
-    }
+  // 초기화 보장
+  if (!auth.initialized && typeof auth.init === 'function') {
+    await auth.init()
   }
 
   const isLoggedIn = !!auth.user
-  const toName = to.name as string | undefined
+  const toName = String(to.name || '')
 
-  // 2) 보호된 라우트인데 로그인 안 되어 있으면 → 로그인 페이지로
+  // 보호 라우트
   if (to.meta.requiresAuth && !isLoggedIn) {
-    return {
-      name: 'login',
-      query: { redirect: to.fullPath },
-    }
+    return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  // 3) 로그인 했는데 로그인/회원가입 페이지 가려고 하면 → 홈으로
+  // 로그인 상태에서 로그인/회원가입 페이지 접근 차단
   if (isLoggedIn && (toName === 'login' || toName === 'signup')) {
     return { name: 'home' }
   }
 
-  // 4) 그 외에는 통과
   return true
 })
 
