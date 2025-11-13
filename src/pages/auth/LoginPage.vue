@@ -64,14 +64,29 @@ const doGoogle = async () => {
       <button
         @click="doLogin"
         :disabled="loading"
-        class="w-full mt-1 rounded-md bg-cyan-400 text-slate-950 py-1 font-semibold hover:bg-cyan-300 disabled:opacity-60"
+        class="
+    w-full mt-1 rounded-md py-1.5 text-[12px] font-semibold
+    bg-slate-900 text-white hover:bg-slate-800
+    dark:bg-yellow-400 dark:text-slate-900 dark:hover:bg-yellow-300
+    disabled:opacity-60 disabled:cursor-not-allowed
+    transition-colors duration-150
+    focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1
+    dark:focus:ring-yellow-300 dark:focus:ring-offset-slate-900
+  "
       >
         로그인
       </button>
+
       <button
         @click="doGoogle"
         :disabled="loading"
-        class="w-full rounded-md border border-slate-300 dark:border-slate-700 py-1 text-slate-700 dark:text-slate-200 hover:border-cyan-400 hover:text-cyan-400 disabled:opacity-60"
+        class="w-full mt-1 rounded-md py-1.5 text-[12px] font-semibold
+    bg-slate-900 text-white hover:bg-slate-800
+    dark:bg-yellow-400 dark:text-slate-900 dark:hover:bg-yellow-300
+    disabled:opacity-60 disabled:cursor-not-allowed
+    transition-colors duration-150
+    focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1
+    dark:focus:ring-yellow-300 dark:focus:ring-offset-slate-900"
       >
         Google 로그인
       </button>
@@ -81,7 +96,20 @@ const doGoogle = async () => {
 
     <p class="text-[10px] text-slate-500">
       계정이 없나요?
-      <RouterLink to="/signup" class="text-cyan-400">회원가입</RouterLink>
+      <RouterLink
+        to="/signup"
+        class="
+      ml-1 inline-flex items-center
+      px-1.5 py-0.5 rounded
+      text-[10px] font-semibold
+      text-slate-900 hover:bg-slate-100
+      dark:text-yellow-300 dark:hover:bg-slate-800
+      transition-colors
+    "
+      >
+        회원가입
+      </RouterLink>
     </p>
+
   </div>
 </template>

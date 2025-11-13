@@ -12,6 +12,9 @@ import { getComments, addComment, deleteComment } from '@/services/comments'
 import type { Post } from '@/types/post'
 import type { Comment } from '@/types/comment'
 import { useAuthStore } from '@/stores/auth.store'
+import MarkdownIt from 'markdown-it'
+import { useModalStore } from '@/stores/modal.store'
+const modal = useModalStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -28,6 +31,15 @@ const liked = ref(false)
 const likePending = ref(false)
 
 const postId = computed(() => route.params.id as string)
+
+// ✅ markdown-it 인스턴스 & 본문 HTML
+const md = new MarkdownIt({
+  breaks: true,
+})
+
+const contentHtml = computed(() =>
+  post.value ? md.render(post.value.content) : '',
+)
 
 async function loadPostAndComments(id: string) {
   if (!id) {
@@ -53,8 +65,18 @@ async function loadPostAndComments(id: string) {
 
     post.value = data
 
-    // 조회수는 실패해도 무시
-    incrementPostViews(id).catch(() => {})
+
+    const viewKey = `viewed_post_${id}`
+
+    if (!sessionStorage.getItem(viewKey)) {
+      incrementPostViews(id)
+        .then(() => {
+          sessionStorage.setItem(viewKey, '1')
+        })
+        .catch(() => {
+          // 실패해도 그냥 무시
+        })
+    }
 
     // 댓글
     comments.value = await getComments(id)
@@ -104,7 +126,26 @@ const isOwner = computed(
 
 async function submitComment() {
   if (!auth.user) {
-    alert('로그인이 필요합니다.')
+    modal.alert({
+      title: '해당 댓글을 삭제할까요?',
+      message: '삭제 후에는 되돌릴 수 없습니다.',
+      type: 'error',
+      onConfirm: async () => {
+        // ✅ 여기 안이 실제 "삭제" 로직
+        try {
+          await deleteComment(id)
+          if (postId.value) {
+            comments.value = await getComments(postId.value)
+          }
+        } catch (e: any) {
+          modal.alert({
+            title: '댓글 삭제 실패',
+            message: e?.message || '삭제 중 오류가 발생했습니다.',
+            type: 'error',
+          })
+        }
+      },
+    })
     return
   }
   const content = newComment.value.trim()
@@ -127,10 +168,27 @@ async function submitComment() {
 async function removeCommentClick(id: string, authorId: string) {
   if (!auth.user || auth.user.uid !== authorId) return
   try {
-    await deleteComment(id)
-    if (postId.value) {
-      comments.value = await getComments(postId.value)
-    }
+    modal.confirm({
+      title: '해당 댓글을 삭제할까요?',
+      message: '삭제 후에는 되돌릴 수 없습니다.',
+      type: 'error',
+      onConfirm: async () => {
+        // ✅ 여기 안이 실제 "삭제" 로직
+        try {
+          await deleteComment(id)
+          if (postId.value) {
+            comments.value = await getComments(postId.value)
+          }
+        } catch (e: any) {
+          modal.alert({
+            title: '댓글 삭제 실패',
+            message: e?.message || '삭제 중 오류가 발생했습니다.',
+            type: 'error',
+          })
+        }
+      },
+    })
+
   } catch (e: any) {
     alert(e?.message || '댓글 삭제 실패')
   }
@@ -138,20 +196,36 @@ async function removeCommentClick(id: string, authorId: string) {
 
 async function deletePostClick() {
   if (!post.value) return
-  if (!confirm('이 글을 삭제할까요?')) return
-  try {
-    await removePost(post.value.id)
-    router.push('/posts')
-  } catch (e: any) {
-    alert(e?.message || '삭제 실패')
-  }
+  modal.confirm({
+    title: '이 글을 삭제할까요?',
+    message: '삭제 후에는 되돌릴 수 없습니다.',
+    type: 'error',
+    onConfirm: async () => {
+      // ✅ 여기 안이 실제 "삭제" 로직
+      try {
+        await removePost(post.value.id)
+        router.push('/')
+      } catch (e: any) {
+        modal.alert({
+          title: '삭제 실패',
+          message: e?.message || '삭제 중 오류가 발생했습니다.',
+          type: 'error',
+        })
+      }
+    },
+  })
+
 }
 
 // ❤️ 좋아요 토글
 async function toggleLikeClick() {
   if (!post.value) return
   if (!auth.user) {
-    alert('로그인이 필요합니다.')
+    modal.alert({
+      title: '비회원',
+      message: '로그인이 필요합니다!',
+      type: 'info',
+    })
     return
   }
   if (likePending.value) return
@@ -162,7 +236,6 @@ async function toggleLikeClick() {
     liked.value = res.liked
     if (post.value) post.value.likes = res.likes
   } catch (e: any) {
-    // Firestore rules 문제 시 여기서 보임
     console.error(e)
     alert(e?.message || '좋아요 처리 중 오류가 발생했습니다.')
   } finally {
@@ -228,33 +301,33 @@ async function toggleLikeClick() {
         </div>
       </div>
 
-      <!-- 본문 -->
+      <!-- 본문 (마크다운 렌더링) -->
       <article
-        class="whitespace-pre-wrap text-[14px] leading-relaxed
-         text-slate-800 dark:text-slate-100
-         bg-slate-50 dark:bg-slate-900/90
-         rounded-2xl p-4"
+        class="prose prose-sm max-w-none dark:prose-invert
+               text-slate-800 dark:text-slate-100
+               bg-slate-50 dark:bg-slate-900/90
+               rounded-2xl p-4"
       >
-        {{ post.content }}
+        <div v-html="contentHtml" />
       </article>
 
-      <!-- 본문 아래 -->
+      <!-- 태그 -->
       <div
         v-if="post.tags && post.tags.length"
         class="flex flex-wrap gap-2 mt-3"
       >
-  <span
-    v-for="t in post.tags"
-    :key="t"
-    class="px-2 py-1 rounded-md text-[11px]
-           bg-slate-100 dark:bg-slate-900/70
-           text-slate-700 dark:text-slate-200
-           border border-transparent
-           hover:border-black dark:hover:border-yellow-400
-           cursor-default select-none transition"
-  >
-    #{{ t }}
-  </span>
+        <span
+          v-for="t in post.tags"
+          :key="t"
+          class="px-2 py-1 rounded-md text-[11px]
+                 bg-slate-100 dark:bg-slate-900/70
+                 text-slate-700 dark:text-slate-200
+                 border border-transparent
+                 hover:border-black dark:hover:border-yellow-400
+                 cursor-default select-none transition"
+        >
+          #{{ t }}
+        </span>
       </div>
 
       <!-- 댓글 -->

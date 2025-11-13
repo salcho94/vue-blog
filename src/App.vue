@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { getAllPublishedPosts } from '@/services/posts'
+import GlobalModal from '@/components/common/GlobalModal.vue'
 import type { Post } from '@/types/post'
 const showMobileMenu = ref(false)
 const auth = useAuthStore()
@@ -93,6 +94,7 @@ const logout = async () => {
 </script>
 
 <template>
+  <GlobalModal />
   <div
     class="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-[system-ui] text-[14px] md:text-[15px] transition-colors duration-300"
   >
