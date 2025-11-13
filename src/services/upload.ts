@@ -14,11 +14,7 @@ export async function uploadImage(file: File): Promise<string> {
     withCredentials: true,
   })
 
-  const url: string = res.data.url // ← "/blog/images/20250223/xxx.png" 형태
+  const url: string = res.data.url
 
-  // 백엔드에서 절대경로를 주면 그대로 사용, 상대경로면 baseURL 붙이기
-  if (url.startsWith('http')) {
-    return url
-  }
   return `${API_BASE_URL}${url}`
 }
