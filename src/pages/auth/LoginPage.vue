@@ -14,27 +14,51 @@ const router = useRouter()
 const route = useRoute()
 const modal = useModalStore()
 
+// 카카오 인앱 브라우저 감지
 const isKakaoInAppBrowser = () => {
   if (typeof navigator === 'undefined') return false
   return /KAKAOTALK/i.test(navigator.userAgent)
 }
 
 const doLogin = async () => {
-  loading.value = true
   errorMsg.value = ''
+
+  const emailTrim = email.value.trim()
+  const passwordTrim = password.value.trim()
+
+  // ✅ 유효성 검증을 모달로 처리
+  if (!emailTrim || !passwordTrim) {
+    modal.alert({
+      title: '로그인 오류',
+      message: '이메일과 비밀번호를 모두 입력해주세요.',
+      type: 'error',
+    })
+    return
+  }
+
+  loading.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(emailTrim, passwordTrim)
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch (e: any) {
-    errorMsg.value = e.message || '로그인 실패'
+    const msg = e?.message || '로그인에 실패했습니다.'
+    errorMsg.value = msg
+    // 🔔 실패도 모달로 보여주고 싶으면 이 부분 주석 해제
+    modal.alert({
+      title: '로그인 실패',
+      message: msg,
+      type: 'error',
+    })
   } finally {
     loading.value = false
   }
 }
 
 const doGoogle = async () => {
-  // ✅ 카톡 인앱 브라우저 차단 + 안내
+  errorMsg.value = ''
+
+  // ✅ 카톡 인앱 브라우저에서는 바로 막고 모달 안내
   if (isKakaoInAppBrowser()) {
     modal.alert({
       title: '브라우저 안내',
@@ -47,20 +71,24 @@ const doGoogle = async () => {
   }
 
   loading.value = true
-  errorMsg.value = ''
   try {
-    // ✅ 스토어 액션 사용 → auth.user 즉시 갱신
+    // ✅ 스토어 액션 사용 (auth.store.ts에 loginWithGoogle 추가되어 있어야 함)
     await auth.loginWithGoogle()
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch (e: any) {
-    errorMsg.value = e.message || '구글 로그인 실패'
+    const msg = e?.message || '구글 로그인에 실패했습니다.'
+    errorMsg.value = msg
+    modal.alert({
+      title: '구글 로그인 실패',
+      message: msg,
+      type: 'error',
+    })
   } finally {
     loading.value = false
   }
 }
 </script>
-
 
 <template>
   <div class="max-w-sm mx-auto space-y-4">
@@ -81,6 +109,7 @@ const doGoogle = async () => {
         placeholder="password"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
       />
+
       <button
         @click="doLogin"
         :disabled="loading"
