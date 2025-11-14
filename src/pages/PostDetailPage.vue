@@ -14,6 +14,7 @@ import type { Comment } from '@/types/comment'
 import { useAuthStore } from '@/stores/auth.store'
 import MarkdownIt from 'markdown-it'
 import { useModalStore } from '@/stores/modal.store'
+
 const modal = useModalStore()
 
 const route = useRoute()
@@ -63,8 +64,11 @@ async function loadPostAndComments(id: string) {
       return
     }
 
-    post.value = data
-
+    // ✅ 예전 글에 category 없을 수도 있으니 기본값 보정
+    post.value = {
+      ...data,
+      category: data.category || '여행', // 또는 'Java' 등 기본값
+    }
 
     const viewKey = `viewed_post_${id}`
 
@@ -124,30 +128,17 @@ const isOwner = computed(
   () => !!(auth.user && post.value && auth.user.uid === post.value.authorId),
 )
 
+// ✅ 댓글 등록
 async function submitComment() {
   if (!auth.user) {
     modal.alert({
-      title: '해당 댓글을 삭제할까요?',
-      message: '삭제 후에는 되돌릴 수 없습니다.',
-      type: 'error',
-      onConfirm: async () => {
-        // ✅ 여기 안이 실제 "삭제" 로직
-        try {
-          await deleteComment(id)
-          if (postId.value) {
-            comments.value = await getComments(postId.value)
-          }
-        } catch (e: any) {
-          modal.alert({
-            title: '댓글 삭제 실패',
-            message: e?.message || '삭제 중 오류가 발생했습니다.',
-            type: 'error',
-          })
-        }
-      },
+      title: '로그인 필요',
+      message: '댓글을 작성하려면 로그인하세요.',
+      type: 'info',
     })
     return
   }
+
   const content = newComment.value.trim()
   if (!content || !postId.value) return
 
@@ -161,10 +152,15 @@ async function submitComment() {
     newComment.value = ''
     comments.value = await getComments(postId.value)
   } catch (e: any) {
-    alert(e?.message || '댓글 등록 실패')
+    modal.alert({
+      title: '댓글 등록 실패',
+      message: e?.message || '댓글 등록 중 오류가 발생했습니다.',
+      type: 'error',
+    })
   }
 }
 
+// ✅ 댓글 삭제
 async function removeCommentClick(id: string, authorId: string) {
   if (!auth.user || auth.user.uid !== authorId) return
   try {
@@ -173,7 +169,6 @@ async function removeCommentClick(id: string, authorId: string) {
       message: '삭제 후에는 되돌릴 수 없습니다.',
       type: 'error',
       onConfirm: async () => {
-        // ✅ 여기 안이 실제 "삭제" 로직
         try {
           await deleteComment(id)
           if (postId.value) {
@@ -188,12 +183,16 @@ async function removeCommentClick(id: string, authorId: string) {
         }
       },
     })
-
   } catch (e: any) {
-    alert(e?.message || '댓글 삭제 실패')
+    modal.alert({
+      title: '댓글 삭제 실패',
+      message: e?.message || '댓글 삭제 중 오류가 발생했습니다.',
+      type: 'error',
+    })
   }
 }
 
+// ✅ 글 삭제
 async function deletePostClick() {
   if (!post.value) return
   modal.confirm({
@@ -201,9 +200,9 @@ async function deletePostClick() {
     message: '삭제 후에는 되돌릴 수 없습니다.',
     type: 'error',
     onConfirm: async () => {
-      // ✅ 여기 안이 실제 "삭제" 로직
       try {
-        await removePost(post.value.id)
+        await removePost(post.value!.id)
+        window.dispatchEvent(new CustomEvent('posts-updated'))
         router.push('/')
       } catch (e: any) {
         modal.alert({
@@ -214,7 +213,6 @@ async function deletePostClick() {
       }
     },
   })
-
 }
 
 // ❤️ 좋아요 토글
@@ -236,8 +234,11 @@ async function toggleLikeClick() {
     liked.value = res.liked
     if (post.value) post.value.likes = res.likes
   } catch (e: any) {
-    console.error(e)
-    alert(e?.message || '좋아요 처리 중 오류가 발생했습니다.')
+    modal.alert({
+      title: '좋아요 오류',
+      message: e?.message || '좋아요 처리 중 오류가 발생했습니다.',
+      type: 'error',
+    })
   } finally {
     likePending.value = false
   }
@@ -254,12 +255,16 @@ async function toggleLikeClick() {
 
     <div v-else-if="post" class="space-y-5">
       <!-- 헤더 -->
-      <div class="flex items-center justify-between gap-3">
-        <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-          {{ post.title }}
-        </h1>
+      <div class="flex items-start justify-between gap-3">
+        <!-- 제목 + 카테고리 -->
+        <div class="flex-1 space-y-1">
+          <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+            {{ post.title }}
+          </h1>
+        </div>
 
-        <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+        <!-- 우측 액션들 -->
+        <div class="flex flex-wrap items-center justify-end gap-2 text-[11px] text-slate-500">
           <span>{{ post.views ?? 0 }} views</span>
 
           <!-- 좋아요 버튼 + 카운트 -->

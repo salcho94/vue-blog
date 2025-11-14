@@ -1,3 +1,12 @@
+export type Category =
+  | 'Java'
+  | 'TypeScript/JavaScript'
+  | 'React'
+  | 'Vue'
+  | 'GitHub'
+  | 'Other'
+  | '여행'
+
 export interface Post {
   id: string
   title: string
@@ -5,7 +14,7 @@ export interface Post {
   summary?: string
   thumbnailUrl?: string
   tags: string[]
-  category?: string
+  category: Category
   authorId: string
   authorName?: string
   createdAt: any

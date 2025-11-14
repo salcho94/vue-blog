@@ -1,9 +1,9 @@
 <!-- src/pages/admin/EditPostPage.vue -->
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getPost, updatePost } from '@/services/posts'
-import type { Post } from '@/types/post'
+import type { Post, Category } from '@/types/post'
 import { useAuthStore } from '@/stores/auth.store'
 import { uploadImage } from '@/services/upload'
 import MarkdownIt from 'markdown-it'
@@ -22,9 +22,15 @@ const loading = ref(true)
 const saving = ref(false)
 const errorMsg = ref('')
 
+// ✅ 카테고리 목록 (개발 언어 + 여행)
+const categories: Category[] = ['Java', 'TypeScript', 'JavaScript', 'React', 'Vue', 'Other', '여행']
+
 // ---- 이미지 업로드/미리보기 관련 ----
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const imageUploading = ref(false)
+
+// ✏️ 본문 textarea DOM 참조 (커서 위치 넣기용)
+const contentTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // markdown-it 인스턴스 + 미리보기 HTML
 const md = new MarkdownIt({
@@ -38,22 +44,36 @@ const updatePreview = () => {
   previewHtml.value = md.render(post.value?.content || '')
 }
 
+// ✅ 커서 위치에 이미지 마크다운 삽입
 const insertImageToContent = (url: string) => {
   if (!post.value) return
+
+  const textarea = contentTextareaRef.value
+  const current = post.value.content || ''
   const mdImage = `\n\n![image](${url})\n`
-  post.value.content = (post.value.content || '') + mdImage
+
+  if (textarea) {
+    const start = textarea.selectionStart ?? current.length
+    const end = textarea.selectionEnd ?? start
+
+    post.value.content =
+      current.slice(0, start) + mdImage + current.slice(end)
+
+    // 커서 위치를 이미지 뒤로 이동
+    nextTick(() => {
+      const pos = start + mdImage.length
+      textarea.selectionStart = textarea.selectionEnd = pos
+    })
+  } else {
+    // textarea ref 못 잡으면 그냥 뒤에 붙이기
+    post.value.content = current + mdImage
+  }
+
   updatePreview()
 }
 
-const handleSelectImage = () => {
-  fileInputRef.value?.click()
-}
-
-const handleFileChange = async (e: Event) => {
-  const target = e.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
+// 공통 이미지 업로드 + 본문 삽입 함수
+const uploadAndInsertImage = async (file: File) => {
   try {
     imageUploading.value = true
     errorMsg.value = ''
@@ -69,8 +89,38 @@ const handleFileChange = async (e: Event) => {
     })
   } finally {
     imageUploading.value = false
-    target.value = ''
   }
+}
+
+const handleSelectImage = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileChange = async (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  await uploadAndInsertImage(file)
+  target.value = ''
+}
+
+// 📌 캡쳐 후 붙여넣기 시 이미지 업로드
+const handlePaste = async (e: ClipboardEvent) => {
+  const clipboardData = e.clipboardData
+  if (!clipboardData) return
+
+  const items = Array.from(clipboardData.items)
+  const imageItem = items.find((item) => item.type.startsWith('image/'))
+  if (!imageItem) return // 이미지 없으면 기본 텍스트 붙여넣기
+
+  const file = imageItem.getAsFile()
+  if (!file) return
+
+  // 기본 붙여넣기 막고 우리가 처리
+  e.preventDefault()
+
+  await uploadAndInsertImage(file)
 }
 
 // ---- 태그 에디터 상태 ----
@@ -115,6 +165,14 @@ const changes = computed(() => {
       after: post.value.summary || '',
     })
 
+  // ✅ 카테고리 변경
+  if (cmp(original.value.category || '', post.value.category || ''))
+    diffs.push({
+      field: '카테고리',
+      before: original.value.category || '',
+      after: post.value.category || '',
+    })
+
   if (cmp(original.value.content || '', post.value.content || ''))
     diffs.push({ field: '본문', before: '…', after: '…' }) // 본문은 길어지니 표시는 생략
 
@@ -134,7 +192,6 @@ const changes = computed(() => {
 
   return diffs
 })
-
 
 onMounted(async () => {
   try {
@@ -159,10 +216,16 @@ onMounted(async () => {
       })
       return
     }
+
     original.value = JSON.parse(JSON.stringify(data)) as Post
     // 편집본 초기화 (깊은복사)
     post.value = JSON.parse(JSON.stringify(data)) as Post
     if (!post.value.tags) post.value.tags = []
+
+    // ✅ 기존 포스트에 category가 없으면 기본값 세팅
+    if (!post.value.category) {
+      post.value.category = 'Java'
+    }
 
     // 최초 미리보기 생성
     updatePreview()
@@ -194,6 +257,14 @@ async function save() {
     return
   }
 
+  if (!post.value.category) {
+    modal.alert({
+      title: '카테고리 선택',
+      message: '카테고리를 선택해주세요.',
+      type: 'error',
+    })
+    return
+  }
 
   saving.value = true
   errorMsg.value = ''
@@ -203,8 +274,10 @@ async function save() {
       summary: post.value.summary?.trim() || '',
       content: post.value.content,
       tags: (post.value.tags || []).map((t) => t.trim()).filter(Boolean),
+      category: post.value.category as Category,
       isPublished: !!post.value.isPublished,
     })
+    window.dispatchEvent(new CustomEvent('posts-updated'))
     modal.alert({
       title: '저장 완료',
       message: '글이 성공적으로 수정되었습니다.',
@@ -257,6 +330,24 @@ async function save() {
         />
       </label>
 
+      <!-- ✅ 카테고리 선택 -->
+      <label class="grid gap-1">
+        <span class="text-slate-500">카테고리</span>
+        <select
+          v-model="post.category"
+          class="w-full max-w-xs rounded-md border border-slate-300 dark:border-slate-700
+                 bg-white dark:bg-slate-950 px-3 py-2 text-[13px]"
+        >
+          <option
+            v-for="c in categories"
+            :key="c"
+            :value="c"
+          >
+            {{ c }}
+          </option>
+        </select>
+      </label>
+
       <!-- 본문 + 이미지 업로드 + 미리보기 -->
       <label class="grid gap-1">
         <span class="text-slate-500">본문</span>
@@ -289,11 +380,13 @@ async function save() {
 
         <!-- 내용 입력 -->
         <textarea
+          ref="contentTextareaRef"
           v-model="post.content"
           rows="12"
           placeholder="내용을 입력하세요 (마크다운 지원, 예: # 제목)"
           class="w-full rounded-md border border-slate-300 dark:border-slate-700
                  bg-white dark:bg-slate-950 px-3 py-3 font-mono text-[12px]"
+          @paste="handlePaste"
         />
 
         <!-- 미리보기 -->

@@ -22,7 +22,18 @@ import { db } from '@/lib/firebase'
 import type { Post } from '@/types/post'
 
 const postsCol = collection(db, 'posts')
+import type { Category } from '@/types/post'
 
+interface CreatePostInput {
+  title: string
+  summary: string
+  content: string
+  tags: string[]
+  category: Category        // ✅ 추가
+  authorId: string
+  authorName: string
+  isPublished: boolean
+}
 /** 새 포스트 생성 */
 export async function createPost(input: {
   title: string
@@ -30,23 +41,32 @@ export async function createPost(input: {
   summary?: string
   thumbnailUrl?: string
   tags?: string[]
-  category?: string
+  category: Category        // ✅ 필수 카테고리
   authorId: string
   authorName?: string
   isPublished?: boolean
 }): Promise<string> {
   const docRef = await addDoc(postsCol, {
-    ...input,
-    tags: input.tags || [],
+    title: input.title,
+    content: input.content,
+    summary: input.summary ?? '',
+    thumbnailUrl: input.thumbnailUrl ?? null,
+
+    category: input.category,
+    tags: input.tags ?? [],
+
+    authorId: input.authorId,
+    authorName: input.authorName ?? 'user',
+
     views: 0,
     likes: 0,
     isPublished: input.isPublished ?? true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+
   return docRef.id
 }
-
 /** 포스트 수정 */
 export async function updatePost(id: string, data: Partial<Post>) {
   const ref = doc(db, 'posts', id)

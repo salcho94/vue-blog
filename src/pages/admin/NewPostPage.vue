@@ -1,6 +1,6 @@
 <!-- src/pages/posts/PostCreatePage.vue -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter } from 'vue-router'
 import { createPost } from '@/services/posts'
@@ -12,14 +12,20 @@ const auth = useAuthStore()
 const router = useRouter()
 const modal = useModalStore()
 
+const categories = ['Java', 'TypeScript/JavaScript', 'React', 'Vue', 'GitHub', 'Other', '여행'] as const
+type Category = (typeof categories)[number]
+const category = ref<Category>('Java')
+
 const title = ref('')
 const summary = ref('')
 const content = ref('')
 const tags = ref('')
 const loading = ref(false)
-const errorMsg = ref('') // 혹시 콘솔/하단 텍스트로도 보고 싶을 때용
+const errorMsg = ref('')
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
+// ✅ 커서 위치용 textarea ref
+const contentTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // markdown-it 인스턴스
 const md = new MarkdownIt({
@@ -35,12 +41,48 @@ const updatePreview = () => {
   previewHtml.value = md.render(content.value)
 }
 
-// 본문에 이미지 마크다운 추가
+// ✅ 본문에 "현재 커서 위치" 기준으로 이미지 마크다운 추가
 const insertImageToContent = (url: string) => {
+  const current = content.value || ''
   const mdImage = `\n\n![image](${url})\n`
-  content.value += mdImage
-  // 이미지 추가했을 때는 자동으로 한 번만 미리보기 갱신
+  const textarea = contentTextareaRef.value
+
+  if (textarea) {
+    const start = textarea.selectionStart ?? current.length
+    const end = textarea.selectionEnd ?? start
+
+    content.value = current.slice(0, start) + mdImage + current.slice(end)
+
+    nextTick(() => {
+      const pos = start + mdImage.length
+      textarea.selectionStart = textarea.selectionEnd = pos
+    })
+  } else {
+    // ref 못 잡혔으면 그냥 뒤에 붙이기
+    content.value = current + mdImage
+  }
+
   updatePreview()
+}
+
+// 공통 이미지 업로드 + 본문 삽입 함수
+const uploadAndInsertImage = async (file: File) => {
+  try {
+    loading.value = true
+    errorMsg.value = ''
+    const url = await uploadImage(file) // 백엔드 업로드 후 절대 URL 반환
+    insertImageToContent(url)
+  } catch (err: any) {
+    const msg = err?.message || '이미지 업로드 실패'
+    errorMsg.value = msg
+    modal.alert({
+      title: '이미지 업로드 오류',
+      message: msg,
+      type: 'error',
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 // "이미지 추가" 버튼 → 파일 선택창
@@ -54,23 +96,26 @@ const handleFileChange = async (e: Event) => {
   const file = target.files?.[0]
   if (!file) return
 
-  try {
-    loading.value = true
-    errorMsg.value = ''
-    const url = await uploadImage(file) // 백엔드에 업로드 후 절대 URL 반환
-    insertImageToContent(url)
-  } catch (err: any) {
-    const msg = err?.message || '이미지 업로드 실패'
-    errorMsg.value = msg
-    modal.alert({
-      title: '이미지 업로드 오류',
-      message: msg,
-      type: 'error',
-    })
-  } finally {
-    loading.value = false
-    target.value = ''
-  }
+  await uploadAndInsertImage(file)
+  target.value = ''
+}
+
+// 📌 캡쳐 후 붙여넣기 시 이미지 업로드
+const handlePaste = async (e: ClipboardEvent) => {
+  const clipboardData = e.clipboardData
+  if (!clipboardData) return
+
+  const items = Array.from(clipboardData.items)
+  const imageItem = items.find((item) => item.type.startsWith('image/'))
+  if (!imageItem) return // 이미지가 없으면 기본 텍스트 붙여넣기 유지
+
+  const file = imageItem.getAsFile()
+  if (!file) return
+
+  // 기본 붙여넣기 막고 우리가 처리
+  e.preventDefault()
+
+  await uploadAndInsertImage(file)
 }
 
 const submit = async () => {
@@ -96,6 +141,15 @@ const submit = async () => {
     return
   }
 
+  if (!category.value) {
+    modal.alert({
+      title: '카테고리 선택',
+      message: '카테고리를 선택해주세요.',
+      type: 'error',
+    })
+    return
+  }
+
   loading.value = true
   errorMsg.value = ''
 
@@ -103,16 +157,20 @@ const submit = async () => {
     const id = await createPost({
       title: titleTrim,
       summary: summary.value.trim(),
-      content: contentTrim, // 여기 안에 마크다운 + 이미지 URL 포함
+      content: contentTrim, // 마크다운 + 이미지 URL 포함
       tags: tags.value
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
+
+      category: category.value,
+
       authorId: auth.user.uid,
       authorName: auth.user.email || 'user',
       isPublished: true,
     })
-
+    // ✅ Explorer 새로고침 트리거
+    window.dispatchEvent(new CustomEvent('posts-updated'))
     await router.push(`/posts/${id}`)
   } catch (e: any) {
     const msg = e?.message || '등록 실패'
@@ -134,6 +192,25 @@ const submit = async () => {
       글 작성
     </h1>
 
+    <!-- ✅ 카테고리 선택 -->
+    <div class="flex items-center gap-2">
+      <span class="text-[11px] text-slate-500 dark:text-slate-300">
+        카테고리
+      </span>
+      <select
+        v-model="category"
+        class="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-[11px]"
+      >
+        <option
+          v-for="c in categories"
+          :key="c"
+          :value="c"
+        >
+          {{ c }}
+        </option>
+      </select>
+    </div>
+
     <!-- 입력 영역만 글자 작게 -->
     <div class="space-y-2 text-[11px]">
       <input
@@ -141,11 +218,13 @@ const submit = async () => {
         placeholder="제목"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
       />
+
       <input
         v-model="summary"
         placeholder="요약 (선택)"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1"
       />
+
       <input
         v-model="tags"
         placeholder="태그 (쉼표로 구분)"
@@ -176,10 +255,12 @@ const submit = async () => {
       </div>
 
       <textarea
+        ref="contentTextareaRef"
         v-model="content"
         rows="10"
         placeholder="내용 (마크다운 지원, 예: # 제목)"
         class="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-2 font-mono"
+        @paste="handlePaste"
       />
     </div>
 
@@ -222,14 +303,17 @@ const submit = async () => {
       @click="submit"
       :disabled="loading"
       class="px-4 py-2 rounded-md text-[12px] font-semibold
-               bg-black text-white hover:bg-slate-800
-               disabled:opacity-60
-               dark:bg-yellow-400 dark:text-black dark:hover:bg-yellow-300"
+             bg-black text-white hover:bg-slate-800
+             disabled:opacity-60
+             dark:bg-yellow-400 dark:text-black dark:hover:bg-yellow-300"
     >
       {{ loading ? '처리 중...' : '게시' }}
     </button>
 
-    <p v-if="errorMsg" class="text-[10px] text-red-400">
+    <p
+      v-if="errorMsg"
+      class="text-[10px] text-red-400"
+    >
       {{ errorMsg }}
     </p>
   </div>

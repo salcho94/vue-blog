@@ -1,10 +1,11 @@
 <!-- src/App.vue -->
 <script setup lang="ts">
 import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed ,onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { getAllPublishedPosts } from '@/services/posts'
 import GlobalModal from '@/components/common/GlobalModal.vue'
+import ExplorerSidebar from '@/components/layout/ExplorerSidebar.vue'
 import type { Post } from '@/types/post'
 const showMobileMenu = ref(false)
 const auth = useAuthStore()
@@ -15,6 +16,21 @@ const isDark = ref(true)
 const posts = ref<Post[]>([])
 const loadingPosts = ref(false)
 const errorMsg = ref('')
+
+
+// ✅ 포스트 목록 다시 불러오기
+const refreshPosts = async () => {
+  loadingPosts.value = true
+  try {
+    posts.value = await getAllPublishedPosts()
+    errorMsg.value = ''
+  } catch (err: any) {
+    errorMsg.value = err?.message || '포스트를 불러올 수 없습니다.'
+  } finally {
+    loadingPosts.value = false
+  }
+}
+
 
 const applyTheme = () => {
   const root = document.documentElement
@@ -33,14 +49,14 @@ onMounted(async () => {
   else if (saved === 'light') isDark.value = false
   applyTheme()
 
-  loadingPosts.value = true
-  try {
-    posts.value = await getAllPublishedPosts()
-  } catch (err: any) {
-    errorMsg.value = err?.message || '포스트를 불러올 수 없습니다.'
-  } finally {
-    loadingPosts.value = false
-  }
+  await refreshPosts()
+
+  // ✅ 전역 이벤트 구독: 글 생성/수정/삭제 후 다시 로드
+  window.addEventListener('posts-updated', refreshPosts)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('posts-updated', refreshPosts)
 })
 
 watch(isDark, applyTheme)
@@ -65,6 +81,7 @@ const activePostMeta = computed(() => {
       return {
         title: found.title || 'untitled.md',
         author: found.authorName || '익명',
+        category : (found as any).category || 'other',
         createdAt,
       }
     }
@@ -292,50 +309,14 @@ const logout = async () => {
 
     <!-- 메인 레이아웃 -->
     <div class="mx-auto max-w-6xl px-4 py-4 flex flex-col gap-4 md:flex-row">
-      <!-- Explorer -->
-      <aside
-        class="hidden md:flex w-64 flex-col gap-2 rounded-2xl
-               border border-slate-200 dark:border-slate-800
-               bg-white/95 dark:bg-slate-950/95
-               p-3 text-[11px] text-slate-600 dark:text-slate-400"
-      >
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-[10px] uppercase tracking-[0.14em]">explorer</span>
-          <span class="text-slate-500">⋯</span>
-        </div>
-
-        <p class="text-[10px] mb-1 text-slate-400 dark:text-slate-500">게시글</p>
-
-        <div class="pl-1 space-y-1 h-96 overflow-y-auto scroll-theme">
-          <button
-            v-for="post in posts"
-            :key="post.id"
-            @click="openPost(post)"
-            class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
-            :class="
-      activePostId === String(post.id)
-        ? 'bg-slate-200 text-black dark:bg-slate-800 dark:text-yellow-400'
-        : 'hover:bg-slate-100 hover:text-black dark:hover:bg-slate-900 dark:hover:text-yellow-300'
-    "
-          >
-            <span class="truncate">{{ post.title || 'untitled.md' }}</span>
-            <span class="text-[9px] text-slate-400">{{ post.views ?? 0 }}v</span>
-          </button>
-        </div>
-
-        <div
-          class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800
-                 text-[10px] text-slate-500 dark:text-slate-600"
-        >
-          <p>
-            auth:
-            <span class="font-semibold text-black dark:text-yellow-400">
-              {{ auth.user ? auth.user.email : 'guest' }}
-            </span>
-          </p>
-          <p>env: <span>firebase</span></p>
-        </div>
-      </aside>
+      <!-- Explorer (카테고리 트리 + scroll-follow) -->
+      <ExplorerSidebar
+        :posts="posts"
+        :active-post-id="activePostId"
+        :loading="loadingPosts"
+        :error="errorMsg"
+        @open-post="openPost"
+      />
 
       <!-- 오른쪽: RouterView -->
       <main
@@ -376,7 +357,7 @@ const logout = async () => {
             <span v-if="activePostMeta">
               {{ activePostMeta.title }}
               <span class="ml-2 text-[10px] text-slate-500 dark:text-slate-400">
-                · {{ activePostMeta.author }} · {{ activePostMeta.createdAt }}
+                · {{ activePostMeta.author }} · {{ activePostMeta.category }} · {{ activePostMeta.createdAt }}
               </span>
             </span>
             <span v-else>router-view.tsx</span>

@@ -27,7 +27,122 @@ html.dark .scroll-theme {
 html.dark .scroll-theme::-webkit-scrollbar-thumb {
   background-color: rgba(250, 204, 21, 0.4); /* 노란색, 약하게 */
 }
-html.dark .scroll-theme::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(250, 204, 21, 0.6);
+
+/* 마크다운 이미지 – Clean Premium Frame */
+.prose img {
+  display: block;
+  margin: 3rem auto;
+  width: 100%;
+  max-width: 720px;
+
+  /* ✅ 고정 비율 + 전체 보이기 */
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+
+  border-radius: 1.25rem;
+  position: relative;
+  z-index: 0;
+
+  /* 기본 테두리 & 그림자 (공통) */
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.25),
+    0 18px 45px rgba(15, 23, 42, 0.45);
+
+  /* 부드러운 전환 */
+  transition:
+    transform 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 0.3s ease-out;
 }
 
+
+/* 얇은 그라디언트 링만 남김 */
+.prose img::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  z-index: -1;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.8),
+    rgba(139, 92, 246, 0.8),
+    rgba(244, 114, 182, 0.8)
+  );
+  opacity: 0.5;
+}
+
+/* 실제 레터박스(여백)는 단색으로 깔끔하게 */
+html.dark .prose img {
+  background-color: #020617; /* dark slate */
+  border-color: rgba(148, 163, 184, 0.55);
+}
+
+html:not(.dark) .prose img {
+  background-color: #f8fafc; /* 거의 흰색에 가까운 톤 */
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+/* 모바일 – 살짝 압축 & 그림자 줄이기 */
+@media (max-width: 768px) {
+  .prose img {
+    margin: 2rem auto;
+    border-radius: 1rem;
+    box-shadow:
+      0 6px 18px rgba(15, 23, 42, 0.25),
+      0 16px 36px rgba(15, 23, 42, 0.35);
+  }
+
+  .prose img:active {
+    transform: scale(0.985);
+  }
+}
+
+/* 로딩 중 스켈레톤 애니메이션 */
+@keyframes shimmerGlow {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.prose img:not([src]),
+.prose img[loading="lazy"]:not([complete]) {
+  background:
+    linear-gradient(
+      110deg,
+      #1e293b 0%,
+      #334155 20%,
+      #475569 40%,
+      #334155 60%,
+      #1e293b 100%
+    );
+  background-size: 200% 100%;
+  animation: shimmerGlow 2s ease-in-out infinite;
+  border-color: transparent;
+}
+
+/* 접근성 – 포커스 상태 */
+.prose img:focus-visible {
+  outline: 3px solid #8b5cf6;
+  outline-offset: 4px;
+}
+
+/* 이미지 로드 완료 후 페이드인 */
+@keyframes fadeInImage {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.prose img[src] {
+  animation: fadeInImage 0.45s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
