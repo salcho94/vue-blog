@@ -3,56 +3,95 @@ import { defineStore } from 'pinia'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
   type User,
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
+import { ensureUserProfile, getUserProfile } from '@/services/users'
+import type { UserProfile } from '@/types/user'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
+    profile: null as UserProfile | null,
     initialized: false,
-    _initPromise: null as Promise<void> | null, // ★ 추가: 중복 init 방지
+    _initPromise: null as Promise<void> | null,
   }),
 
+  getters: {
+    isLoggedIn: (state) => !!state.user,
+    // 지금은 admin만 글쓰기 가능하게
+    canWrite: (state) => state.profile?.role === 'admin',
+  },
+
   actions: {
-    init(): Promise<void> {
-      if (this.initialized) return Promise.resolve()
+
+    async init() {
+      if (this.initialized) return
       if (this._initPromise) return this._initPromise
 
       this._initPromise = new Promise<void>((resolve) => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
           this.user = user
+
+          if (user) {
+            await ensureUserProfile({
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+            })
+            this.profile = await getUserProfile(user.uid)
+          } else {
+            this.profile = null
+          }
+
           this.initialized = true
-          unsubscribe()       // 첫 이벤트 후 정리
           resolve()
         })
       })
+
       return this._initPromise
     },
 
     async login(email: string, password: string) {
-      const { user } = await signInWithEmailAndPassword(auth, email, password)
-      this.user = user
-    },
+      const cred = await signInWithEmailAndPassword(auth, email, password)
 
-    async signup(email: string, password: string) {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password)
-      this.user = user
+      // 🔥 라우터에서 바로 인식할 수 있게 즉시 세팅
+      this.user = cred?.user
+      await ensureUserProfile({
+        uid: cred.user.uid,
+        email: cred.user.email,
+        displayName: cred.user.displayName,
+        photoURL: cred.user.photoURL,
+      })
+      this.profile = await getUserProfile(cred.user.uid)
+      this.initialized = true
     },
 
     async loginWithGoogle() {
       const provider = new GoogleAuthProvider()
-      const { user } = await signInWithPopup(auth, provider)
-      this.user = user
+      const cred = await signInWithPopup(auth, provider)
+
+      this.user = cred.user
+      await ensureUserProfile({
+        uid: cred.user.uid,
+        email: cred.user.email,
+        displayName: cred.user.displayName,
+        photoURL: cred.user.photoURL,
+      })
+      this.profile = await getUserProfile(cred.user.uid)
+      this.initialized = true
     },
 
     async logout() {
       await signOut(auth)
       this.user = null
+      this.profile = null
+      this.initialized = false
+      this._initPromise = null
     },
   },
 })

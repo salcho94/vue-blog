@@ -149,11 +149,11 @@ const logout = async () => {
               홈
             </RouterLink>
             <RouterLink
-              v-if="auth.user"
+              v-if="auth.canWrite"
               :to="{ name: 'new-post' }"
               class="rounded-t-md px-3 py-1.5
-                 hover:bg-slate-100 dark:hover:bg-slate-900/70
-                 hover:text-black dark:hover:text-yellow-400 transition-colors"
+              hover:bg-slate-100 dark:hover:bg-slate-900/70
+              hover:text-black dark:hover:text-yellow-400 transition-colors"
               active-class="bg-slate-200 dark:bg-slate-900 text-black dark:text-yellow-400"
             >
               글 작성
@@ -258,7 +258,7 @@ const logout = async () => {
           </RouterLink>
 
           <RouterLink
-            v-if="auth.user"
+            v-if="auth.canWrite"
             :to="{ name: 'new-post' }"
             class="px-2 py-1 rounded-md
                hover:bg-slate-100 dark:hover:bg-slate-900
@@ -267,7 +267,6 @@ const logout = async () => {
           >
             글 작성
           </RouterLink>
-
           <div v-if="auth.user" class="flex items-center justify-between px-2 pt-1">
         <span class="text-slate-500 text-[11px] truncate">
           {{ auth.user.email }}

@@ -1,9 +1,10 @@
 // src/router/index.ts
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { useModalStore } from '@/stores/modal.store'
 
 // ⬇️ 코드 스플리팅(권장)
-const HomeFeed      = () => import('@/pages/HomeFeed.vue')        // 새로 만든 피드 컴포넌트
+const HomeFeed      = () => import('@/pages/HomeFeed.vue')
 const PostDetail    = () => import('@/pages/PostDetailPage.vue')
 const LoginPage     = () => import('@/pages/auth/LoginPage.vue')
 const SignupPage    = () => import('@/pages/auth/SignupPage.vue')
@@ -12,31 +13,28 @@ const EditPostPage  = () => import('@/pages/admin/EditPostPage.vue')
 const AboutView     = () => import('@/views/AboutView.vue')
 const TagPage       = () => import('@/pages/TagPage.vue')
 
+
 const routes: RouteRecordRaw[] = [
-  // 홈 = 바로 피드
-  { path: '/', name: 'home', component: HomeFeed },
-
-  // 기존 posts 경로도 피드로 통일(북마크 호환)
-  { path: '/posts', name: 'posts', component: HomeFeed },
-
+  { path: '/',       name: 'home',   component: HomeFeed },
+  { path: '/posts',  name: 'posts',  component: HomeFeed },
   { path: '/posts/:id', name: 'post-detail', component: PostDetail },
-  { path: '/t/:tag',    name: 'tag-view',    component: TagPage, props: true },
+  { path: '/t/:tag', name: 'tag-view', props: true, component: TagPage },
 
   { path: '/about',  name: 'about',  component: AboutView },
   { path: '/login',  name: 'login',  component: LoginPage },
   { path: '/signup', name: 'signup', component: SignupPage },
-
   {
     path: '/admin/new',
     name: 'new-post',
     component: NewPostPage,
-    meta: { requiresAuth: true },
+    // 👇 나중에 권한 쓸 거면 이렇게도 가능
+    meta: { requiresAuth: true, requiresWriter: true },
   },
   {
     path: '/admin/edit/:id',
     name: 'edit-post',
     component: EditPostPage,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresWriter: true },
   },
 ]
 
@@ -48,15 +46,17 @@ const router = createRouter({
   },
 })
 
+// src/router/index.ts
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const modal = useModalStore()
 
-  // 초기화 보장
-  if (!auth.initialized && typeof auth.init === 'function') {
+  // ✅ Firebase auth 상태 로딩 끝날 때까지 기다림
+  if (!auth.initialized) {
     await auth.init()
   }
 
-  const isLoggedIn = !!auth.user
+  const isLoggedIn = auth.isLoggedIn
   const toName = String(to.name || '')
 
   // 보호 라우트
@@ -64,12 +64,33 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  // 로그인 상태에서 로그인/회원가입 페이지 접근 차단
+  // 🔒 로그인 상태에서 login / signup 접근 막기
   if (isLoggedIn && (toName === 'login' || toName === 'signup')) {
     return { name: 'home' }
   }
 
+  // 글 작성 권한 라우트
+  if (to.meta.requiresWriter) {
+    if (!isLoggedIn) {
+      modal.alert({
+        title: '로그인 필요',
+        message: '글을 작성하려면 로그인이 필요합니다.',
+        type: 'info',
+      })
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+    if (!auth.canWrite) {
+      modal.alert({
+        title: '권한 부족',
+        message: '글 작성 권한이 없습니다.(https://salcho.kro.kr 관리자에게 문의하세요)',
+        type: 'error',
+      })
+      return { name: 'home' }
+    }
+  }
+
   return true
 })
+
 
 export default router
