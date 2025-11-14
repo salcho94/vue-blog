@@ -6,7 +6,7 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  type User,
+  type User, createUserWithEmailAndPassword
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { ensureUserProfile, getUserProfile } from '@/services/users'
@@ -54,6 +54,11 @@ export const useAuthStore = defineStore('auth', {
       })
 
       return this._initPromise
+    },
+
+    async signup(email: string, password: string) {
+      const cred = await createUserWithEmailAndPassword(auth, email, password)
+      this.user = cred.user
     },
 
     async login(email: string, password: string) {
