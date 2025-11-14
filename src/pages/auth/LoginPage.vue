@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { loginWithGoogle } from '@/services/auth'
 import { useModalStore } from '@/stores/modal.store'
 
 const email = ref('')
@@ -35,7 +34,7 @@ const doLogin = async () => {
 }
 
 const doGoogle = async () => {
-  // ✅ 카카오 인앱 브라우저에서는 바로 막고 모달 안내
+  // ✅ 카톡 인앱 브라우저 차단 + 안내
   if (isKakaoInAppBrowser()) {
     modal.alert({
       title: '브라우저 안내',
@@ -50,7 +49,8 @@ const doGoogle = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
-    await loginWithGoogle()
+    // ✅ 스토어 액션 사용 → auth.user 즉시 갱신
+    await auth.loginWithGoogle()
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch (e: any) {
@@ -60,6 +60,7 @@ const doGoogle = async () => {
   }
 }
 </script>
+
 
 <template>
   <div class="max-w-sm mx-auto space-y-4">

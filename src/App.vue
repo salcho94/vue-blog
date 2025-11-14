@@ -44,6 +44,7 @@ const applyTheme = () => {
 }
 
 onMounted(async () => {
+  auth.init?.()
   const saved = localStorage.getItem('theme')
   if (saved === 'dark') isDark.value = true
   else if (saved === 'light') isDark.value = false
