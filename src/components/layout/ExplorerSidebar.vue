@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import type { Post } from '@/types/post'
+import { useAuthStore } from '@/stores/auth.store'
 
 const props = defineProps<{
   posts: Post[]
@@ -16,7 +17,7 @@ const emit = defineEmits<{
 
 // ✅ 카테고리 순서 고정 (원하면 순서/라벨 수정)
 const CATEGORY_ORDER = ['Java', 'TypeScript', 'JavaScript', 'React', 'Vue', '여행', '기타']
-
+const auth = useAuthStore()
 // 카테고리별 그룹핑
 const grouped = computed(() => {
   const map = new Map<string, Post[]>()
@@ -187,7 +188,15 @@ watch(
       <p>
         auth:
         <span class="font-semibold text-black dark:text-yellow-400">
-          {{ $auth?.user ? $auth.user.email : 'guest' }}
+          <template v-if="$auth?.user">
+            {{ $auth.user.email }}
+            <span class="ml-1 text-[11px] text-slate-500 dark:text-slate-300">
+              ({{ $auth.profile?.role || 'user' }})
+            </span>
+          </template>
+          <template v-else>
+            guest
+          </template>
         </span>
       </p>
       <p>env: <span>firebase</span></p>

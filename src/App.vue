@@ -149,7 +149,7 @@ const logout = async () => {
               홈
             </RouterLink>
             <RouterLink
-              v-if="auth.canWrite"
+              v-if="$auth.profile?.role === 'admin'"
               :to="{ name: 'new-post' }"
               class="rounded-t-md px-3 py-1.5
               hover:bg-slate-100 dark:hover:bg-slate-900/70
@@ -258,7 +258,7 @@ const logout = async () => {
           </RouterLink>
 
           <RouterLink
-            v-if="auth.canWrite"
+            v-if="$auth.profile?.role === 'admin'"
             :to="{ name: 'new-post' }"
             class="px-2 py-1 rounded-md
                hover:bg-slate-100 dark:hover:bg-slate-900
