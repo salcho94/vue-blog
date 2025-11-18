@@ -1,7 +1,7 @@
 // src/services/upload.ts
 import axios from 'axios'
 
-const API_BASE_URL = 'http://js94.kro.kr:518'
+const API_BASE_URL = 'https://salchoserver.n-e.kr:518'
 
 export async function uploadImage(file: File): Promise<string> {
   const formData = new FormData()
