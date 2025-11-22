@@ -1,0 +1,1 @@
+import{a as o}from"./index-B9ygI19o.js";const t="https://salchoserver.n-e.kr";async function p(r){const a=new FormData;a.append("file",r);const e=(await o.post(`${t}/blog/upload`,a,{headers:{"Content-Type":"multipart/form-data"},withCredentials:!0})).data.url;return`${t}${e}`}export{p as u};
