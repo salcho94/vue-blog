@@ -22,8 +22,8 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isLoggedIn: (state) => !!state.user,
-    // 지금은 admin만 글쓰기 가능하게
-    canWrite: (state) => state.profile?.role === 'admin',
+    // 글쓰기 가능하게
+    canWrite: (state) => state.profile?.role === 'admin' || state.profile?.role === 'master',
   },
 
   actions: {

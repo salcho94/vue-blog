@@ -1,4 +1,4 @@
-<!-- src/pages/HomeFeed.vue -->
+<!-- src/pages/Chat.vue -->
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'

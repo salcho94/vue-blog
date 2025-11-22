@@ -149,7 +149,7 @@ const logout = async () => {
               홈
             </RouterLink>
             <RouterLink
-              v-if="$auth.profile?.role === 'admin'"
+              v-if="$auth.profile?.role === 'master' || $auth.profile?.role === 'admin'"
               :to="{ name: 'new-post' }"
               class="rounded-t-md px-3 py-1.5
               hover:bg-slate-100 dark:hover:bg-slate-900/70
@@ -157,6 +157,16 @@ const logout = async () => {
               active-class="bg-slate-200 dark:bg-slate-900 text-black dark:text-yellow-400"
             >
               글 작성
+            </RouterLink>
+            <RouterLink
+                v-if="$auth.profile?.role === 'master'"
+                :to="{ name: 'chat' }"
+                class="rounded-t-md px-3 py-1.5
+              hover:bg-slate-100 dark:hover:bg-slate-900/70
+              hover:text-black dark:hover:text-yellow-400 transition-colors"
+                active-class="bg-slate-200 dark:bg-slate-900 text-black dark:text-yellow-400"
+            >
+              채팅
             </RouterLink>
           </nav>
         </div>

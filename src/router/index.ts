@@ -3,7 +3,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModalStore } from '@/stores/modal.store'
 
-// ⬇️ 코드 스플리팅(권장)
+
 const HomeFeed      = () => import('@/pages/HomeFeed.vue')
 const PostDetail    = () => import('@/pages/PostDetailPage.vue')
 const LoginPage     = () => import('@/pages/auth/LoginPage.vue')
@@ -12,6 +12,7 @@ const NewPostPage   = () => import('@/pages/admin/NewPostPage.vue')
 const EditPostPage  = () => import('@/pages/admin/EditPostPage.vue')
 const AboutView     = () => import('@/views/AboutView.vue')
 const TagPage       = () => import('@/pages/TagPage.vue')
+const ChatPage       = () => import('@/pages/chat/Chat.vue')
 
 
 const routes: RouteRecordRaw[] = [
@@ -23,6 +24,13 @@ const routes: RouteRecordRaw[] = [
   { path: '/about',  name: 'about',  component: AboutView },
   { path: '/login',  name: 'login',  component: LoginPage },
   { path: '/signup', name: 'signup', component: SignupPage },
+  {
+    path: '/chat',
+    name: 'chat',
+    component: ChatPage,
+    // 👇 나중에 권한 쓸 거면 이렇게도 가능
+    meta: { requiresAuth: true, requiresWriter: true },
+  },
   {
     path: '/admin/new',
     name: 'new-post',
