@@ -16,14 +16,14 @@ const emit = defineEmits<{
 }>()
 
 // ✅ 카테고리 순서 고정 (원하면 순서/라벨 수정)
-const CATEGORY_ORDER = ['Java', 'TypeScript', 'JavaScript', 'React', 'Vue', '여행', '기타']
+const CATEGORY_ORDER = ['Java', 'TypeScript', 'JavaScript', 'React', 'Vue', '여행', 'Other']
 const auth = useAuthStore()
 // 카테고리별 그룹핑
 const grouped = computed(() => {
   const map = new Map<string, Post[]>()
 
   for (const p of props.posts) {
-    const c = (p as any).category || '기타'
+    const c = (p as any).category || 'Other'
     if (!map.has(c)) map.set(c, [])
     map.get(c)!.push(p)
   }
@@ -50,16 +50,31 @@ const grouped = computed(() => {
 // 카테고리 접기/펴기 상태
 const openCategories = ref<Record<string, boolean>>({})
 
-watch(
-  grouped,
-  (groups) => {
-    for (const g of groups) {
-      if (openCategories.value[g.category] === undefined) {
-        openCategories.value[g.category] = true
-      }
+// ✅ 전체 열림 상태 계산
+const allOpen = computed(() => {
+    const groups = grouped.value
+    if (!groups.length) return false
+    return groups.every((g) => openCategories.value[g.category])
+})
+
+// ✅ 전체 열기/닫기 토글
+const toggleAllCategories = () => {
+    const target = !allOpen.value
+    for (const g of grouped.value) {
+        openCategories.value[g.category] = target
     }
-  },
-  { immediate: true },
+}
+
+watch(
+    grouped,
+    (groups) => {
+        const next: Record<string, boolean> = {}
+        for (const g of groups) {
+            next[g.category] = false
+        }
+        openCategories.value = next
+    },
+    { immediate: true },
 )
 
 // 현재 글 버튼 DOM refs -> active일 때 자동 스크롤
@@ -70,41 +85,72 @@ function setPostItemRef(id: string, el: HTMLButtonElement | null) {
   postItemRefs.value[id] = el
 }
 
-// activePostId 변경 시 explorer 스크롤 맞춰주기
+// activePostId 변경 시 explorer 스크롤 + 카테고리 열림 상태 맞추기
 watch(
-  () => props.activePostId,
-  async (id) => {
-    if (!id) return
-    await nextTick()
-    const el = postItemRefs.value[id]
-    const container = containerRef.value
-    if (el && container) {
-      const elRect = el.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-      const offset = elRect.top - containerRect.top
+    () => props.activePostId,
+    async (id) => {
+        if (!id) return
 
-      if (offset < 0 || offset > container.clientHeight - 40) {
-        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-      }
-    }
-  },
-  { immediate: true },
+
+        const groups = grouped.value
+        let targetCategory: string | null = null
+
+        for (const g of groups) {
+            if (g.posts.some((p) => String(p.id) === id)) {
+                targetCategory = g.category
+                break
+            }
+        }
+
+        if (targetCategory) {
+            const next: Record<string, boolean> = {}
+            for (const g of groups) {
+                next[g.category] = g.category === targetCategory
+            }
+            openCategories.value = next
+        }
+
+        await nextTick()
+        const el = postItemRefs.value[id]
+        const container = containerRef.value
+        if (el && container) {
+            const elRect = el.getBoundingClientRect()
+            const containerRect = container.getBoundingClientRect()
+            const offset = elRect.top - containerRect.top
+
+            if (offset < 0 || offset > container.clientHeight - 40) {
+                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+            }
+        }
+    },
+    { immediate: true },
 )
+
 </script>
 
 <template>
-  <aside
-    class="hidden md:flex w-64 flex-col gap-2 rounded-2xl
+    <aside
+            class="hidden md:flex w-64 flex-col gap-2 rounded-2xl
          border border-slate-200 dark:border-slate-800
          bg-white/95 dark:bg-slate-950/95
          p-3 text-[11px] text-slate-600 dark:text-slate-400
          sticky top-20 self-start max-h-[calc(100vh-6rem)]"
-  >
-    <div class="flex items-center justify-between mb-1">
-      <span class="text-[10px] uppercase tracking-[0.14em]">explorer</span>
-      <span class="text-slate-500">⋯</span>
-    </div>
+    >
+        <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] uppercase tracking-[0.14em]">explorer</span>
 
+            <!-- 🔥 전체 열기 / 닫기 토글 -->
+            <button
+                    type="button"
+                    class="text-[10px] px-1.5 py-0.5 rounded
+               text-slate-500 hover:text-slate-800
+               dark:text-slate-400 dark:hover:text-slate-200
+               hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors"
+                    @click="toggleAllCategories"
+            >
+                {{ allOpen ? '전체 닫기' : '전체 열기' }}
+            </button>
+        </div>
     <p class="text-[10px] mb-1 text-slate-400 dark:text-slate-500">
       게시글
     </p>

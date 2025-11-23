@@ -43,11 +43,11 @@ const doLogin = async () => {
     router.push(redirect)
   } catch (e: any) {
     const msg = e?.message || '로그인에 실패했습니다.'
-    errorMsg.value = msg
+    //errorMsg.value = msg
     // 🔔 실패도 모달로 보여주고 싶으면 이 부분 주석 해제
     modal.alert({
       title: '로그인 실패',
-      message: msg,
+      message: msg === 'Firebase: Error (auth/invalid-email).' ? '아이디와 비밀번호를 확인해주세요' : msg,
       type: 'error',
     })
   } finally {
@@ -95,7 +95,9 @@ const doGoogle = async () => {
     <h1 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
       login
     </h1>
-
+    <form
+      @submit.prevent="doLogin"
+    >
     <div class="space-y-2 text-[11px]">
       <input
         v-model="email"
@@ -142,6 +144,7 @@ const doGoogle = async () => {
         Google 로그인
       </button>
     </div>
+    </form>
 
     <p v-if="errorMsg" class="text-[10px] text-red-400">
       {{ errorMsg }}
@@ -164,4 +167,5 @@ const doGoogle = async () => {
       </RouterLink>
     </p>
   </div>
+
 </template>

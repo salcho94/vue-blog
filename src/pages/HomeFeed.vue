@@ -1,9 +1,9 @@
 <!-- src/pages/Chat.vue -->
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
-import { getAllTags, getPublishedPostsPage, type PostsPageCursor } from '@/services/posts'
-import type { Post } from '@/types/post'
+import {ref, onMounted, computed, watch, onBeforeUnmount} from 'vue'
+import {useRoute, RouterLink} from 'vue-router'
+import {getAllTags, getPublishedPostsPage, type PostsPageCursor} from '@/services/posts'
+import type {Post} from '@/types/post'
 
 const route = useRoute()
 
@@ -32,7 +32,7 @@ const bootstrap = async () => {
     selectedTag.value = qTag
     const [tagList, first] = await Promise.all([
       getAllTags(),
-      getPublishedPostsPage({ limit: PAGE_SIZE, tag: selectedTag.value })
+      getPublishedPostsPage({limit: PAGE_SIZE, tag: selectedTag.value})
     ])
     tags.value = tagList
     all.value = first.items
@@ -57,7 +57,7 @@ watch(selectedTag, async () => {
   loading.value = true
   errorMsg.value = ''
   try {
-    const page = await getPublishedPostsPage({ limit: PAGE_SIZE, tag: selectedTag.value })
+    const page = await getPublishedPostsPage({limit: PAGE_SIZE, tag: selectedTag.value})
     all.value = page.items
     cursor.value = page.nextCursor
     isEnd.value = page.isEnd
@@ -114,8 +114,9 @@ const sorted = computed(() => {
 const fmt = (ts: any) => {
   try {
     const d = ts?.toDate?.() as Date
-    if (d) return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-  } catch {}
+    if (d) return d.toLocaleDateString('ko-KR', {year: 'numeric', month: '2-digit', day: '2-digit'})
+  } catch {
+  }
   return ''
 }
 
@@ -126,7 +127,7 @@ let io: IntersectionObserver | null = null
 onMounted(() => {
   io = new IntersectionObserver((entries) => {
     if (entries[0]?.isIntersecting) loadMore()
-  }, { rootMargin: '120px' }) // 조금 여유
+  }, {rootMargin: '120px'}) // 조금 여유
   if (sentinel.value) io.observe(sentinel.value)
 })
 onBeforeUnmount(() => {
@@ -138,7 +139,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="space-y-4">
     <!-- 검색/태그 바 동일 (생략 가능) -->
-    <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 md:p-4">
+    <section
+      class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 md:p-4">
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div class="flex-1 max-w-xl">
           <input
@@ -210,8 +212,14 @@ onBeforeUnmount(() => {
             <span class="ml-auto">{{ p.views ?? 0 }} views · {{ p.likes ?? 0 }} likes</span>
           </div>
 
-          <p class="mt-3 text-[14px] leading-relaxed text-slate-700 dark:text-slate-200 line-clamp-3">
-            {{ p.summary || p.content }}
+          <p
+            class="mt-3 text-[14px] leading-relaxed text-slate-700 dark:text-slate-200 line-clamp-3">
+            {{
+              p.summary || p.content.replace(
+                /!\[image]\(https:\/\/salchoserver\.n-e\.kr\/blog\/images\/(.*?)\)/g,
+                '$1'
+              )
+            }}
           </p>
 
           <div class="mt-3 flex flex-wrap gap-1">
